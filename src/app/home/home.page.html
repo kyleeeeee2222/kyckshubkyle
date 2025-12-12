@@ -1,0 +1,203 @@
+<ion-header [translucent]="true">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+  <ion-toolbar style="--background: #ff8000; --color: white;">
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="logo-title">
+      <img src="/kycklogo.png" alt="KYcks Logo" class="header-logo">
+    </ion-title>
+    
+    <ion-buttons slot="end">
+      <ion-searchbar 
+        [(ngModel)]="searchQuery" 
+        (ionFocus)="onSearchFocus()"
+        (ionBlur)="onSearchBlur()"
+        (ionInput)="onSearch($event)"
+        (ionClear)="clearSearch()"
+        placeholder="Search..."
+        class="custom-searchbar"
+        debounce="300">
+      </ion-searchbar>
+      <ion-button class="cart-btn" [class.cart-btn-item-added]="isCartAnimating" (click)="openCart()" style="--padding-start: 0; --padding-end: 0; --padding-top: 0; --padding-bottom: 0; --ripple-color: transparent; --background: transparent; --box-shadow: none; width: 24px; height: 50px; min-width: 50px; min-height: 50px; margin: 0 10px;">
+        <div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; position: relative;">
+          <img src="/cart-removebg-preview.png" alt="Cart" style="width: 100%; height: 100%; object-fit: contain; display: block;">
+          <ion-badge color="danger" *ngIf="cartItemCount > 0" style="position: absolute; top: -5px; right: -5px; font-size: 8px; --padding-start: 2px; --padding-end: 2px; --padding-top: 1px; --padding-bottom: 1px; min-width: 12px; min-height: 12px; display: flex; align-items: center; justify-content: center; border-radius: 6px;">{{ cartItemCount }}</ion-badge>
+        </div>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-modal [isOpen]="isSearchOpen" (didDismiss)="onSearchDismiss()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Search Results</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="dismissSearch()">Close</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+      <ion-toolbar>
+        <ion-searchbar 
+          [(ngModel)]="searchQuery" 
+          (ionInput)="onSearch($event)" 
+          placeholder="Search shoes, brands, categories..."
+          autofocus
+          class="search-modal-bar">
+        </ion-searchbar>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <div *ngIf="searchResults.length === 0 && searchQuery" class="no-results">
+        No results found for "{{searchQuery}}"
+      </div>
+      <ion-list>
+        <ion-item *ngFor="let product of searchResults" [routerLink]="['/product', product.id]" (click)="dismissSearch()">
+          <ion-thumbnail slot="start">
+            <img [src]="product.image" [alt]="product.name">
+          </ion-thumbnail>
+          <ion-label>
+            <h2>{{product.name}}</h2>
+            <p>{{product.brand}} • {{product.category}}</p>
+            <p class="price">
+              <span class="current-price">${{product.price}}</span>
+              <span *ngIf="product.discount" class="original-price">${{product.originalPrice}}</span>
+              <span *ngIf="product.discount" class="discount">{{product.discount}}% OFF</span>
+            </p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Cart Modal -->
+<ion-modal [isOpen]="isCartOpen" (didDismiss)="closeCart()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Your Cart</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeCart()">Close</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <div *ngIf="cartItems.length === 0" class="empty-cart">
+        <ion-icon name="cart-outline" class="empty-cart-icon"></ion-icon>
+        <h3>Your cart is empty</h3>
+        <p>Looks like you haven't added anything to your cart yet.</p>
+        <ion-button (click)="closeCart()" expand="block" fill="outline">
+          Continue Shopping
+        </ion-button>
+      </div>
+
+      <ion-list *ngIf="cartItems.length > 0">
+        <ion-item *ngFor="let item of cartItems" class="cart-item">
+          <ion-thumbnail slot="start">
+            <img [src]="item.product.image" [alt]="item.product.name">
+          </ion-thumbnail>
+          <ion-label>
+            <h3>{{item.product.name}}</h3>
+            <p>{{item.product.brand}}</p>
+            <p class="price">${{item.product.price | number:'1.2-2'}}</p>
+          </ion-label>
+          
+          <div class="quantity-controls">
+            <ion-button fill="clear" (click)="updateQuantity(item, -1)" size="small">
+              <ion-icon name="remove-outline"></ion-icon>
+            </ion-button>
+            <span class="quantity">{{item.quantity}}</span>
+            <ion-button fill="clear" (click)="updateQuantity(item, 1)" size="small">
+              <ion-icon name="add-outline"></ion-icon>
+            </ion-button>
+          </div>
+          
+          <ion-button fill="clear" color="danger" (click)="removeFromCart(item)" slot="end">
+            <ion-icon name="trash-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+
+    <ion-footer *ngIf="cartItems.length > 0">
+      <ion-toolbar>
+        <div class="cart-summary">
+          <div class="total">
+            <span>Total:</span>
+            <span>${{calculateTotal() | number:'1.2-2'}}</span>
+          </div>
+          <ion-button expand="block" (click)="checkout()" class="checkout-btn">
+            Proceed to Checkout
+          </ion-button>
+        </div>
+      </ion-toolbar>
+    </ion-footer>
+  </ng-template>
+</ion-modal>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>Step into Style</h1>
+    <p>Discover the latest trends in footwear</p>
+    <ion-button shape="round" class="shop-now-btn">SHOP NOW</ion-button>
+  </div>
+
+  <!-- Categories -->
+  <h2 class="section-title">Categories</h2>
+  <swiper-container [slidesPerView]="slideOpts.slidesPerView" [spaceBetween]="slideOpts.spaceBetween" [freeMode]="slideOpts.freeMode">
+    <swiper-slide *ngFor="let category of categories">
+      <div class="category-card">
+        <img [src]="category.image" [alt]="category.name">
+        <h3>{{category.name}}</h3>
+      </div>
+    </swiper-slide>
+  </swiper-container>
+
+  <!-- Featured Products -->
+  <div class="featured-header">
+    <h2 class="section-title">Featured Shoes</h2>
+    <a href="#" class="view-all">View All</a>
+  </div>
+  
+  <div class="products-grid">
+    <ion-card *ngFor="let product of featuredProducts" class="product-card">
+      <div class="discount-badge" *ngIf="product.discount">-{{product.discount}}%</div>
+      <img [src]="product.image" [alt]="product.name">
+      <ion-card-header>
+        <ion-card-subtitle>{{product.brand}}</ion-card-subtitle>
+        <ion-card-title>{{product.name}}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="price">
+          <strong>${{product.price}}</strong>
+          <span class="original-price" *ngIf="product.originalPrice">${{product.originalPrice}}</span>
+        </div>
+        <ion-button 
+          expand="block" 
+          color="dark" 
+          size="small"
+          class="add-to-cart-btn"
+          (click)="addToCart(product)">
+          <ion-icon name="cart-outline" slot="start"></ion-icon>
+          <span class="btn-text">Add to Cart</span>
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- Banner -->
+  <div class="banner">
+    <h2>Christmas Sale</h2>
+    <p>Up to 50% off on selected items</p>
+    <ion-button fill="outline" color="light">Shop Sale</ion-button>
+  </div>
+
+  <!-- Brands -->
+  <h2 class="section-title">Shop by Brand</h2>
+  <div class="brands">
+    <ion-img *ngFor="let brand of brands" [src]="brand" class="brand-logo"></ion-img>
+  </div>
+</ion-content>
